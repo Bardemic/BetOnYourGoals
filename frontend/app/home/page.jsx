@@ -1,4 +1,5 @@
 import WagerCard from "@/components/ui/wagercard"
+import NewWager from "@/components/ui/newwager"
 
 export default function home() {
     return (
@@ -8,7 +9,12 @@ export default function home() {
             </header>
             <div className="flex w-1/2 flex-col justify-center items-center mt-8">
                 <h1 className="text-3xl text-ring">New day new you, right Brandon?</h1>
-                <div className="mt-24">
+                
+                <div className="mt-12 w-full max-w-md">
+                    <h2 className="text-center mb-2">Create New Wager</h2>
+                    <NewWager></NewWager>
+                </div>
+                <div className="mt-4">
                     <h2 className="text-center mb-2">
                         Current Wagers
                     </h2>
@@ -17,7 +23,6 @@ export default function home() {
                     </div>
                 </div>
             </div>
-            
         </div>
     )
 }
