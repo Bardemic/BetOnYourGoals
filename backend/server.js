@@ -2,10 +2,24 @@ const express = require('express');
 const cors = require('cors');
 const Wage = require('./wage');
 const auth = require('./auth');
+const paypal = require('@paypal/checkout-server-sdk');
 require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 3001;
+
+// PayPal configuration
+let environment = new paypal.core.SandboxEnvironment(
+  process.env.PAYPAL_CLIENT_ID,
+  process.env.PAYPAL_CLIENT_SECRET
+);
+let paypalClient = new paypal.core.PayPalHttpClient(environment);
+
+// Add this debug log
+console.log('PayPal Environment:', {
+  clientId: process.env.PAYPAL_CLIENT_ID?.substring(0, 10) + '...',
+  hasSecret: !!process.env.PAYPAL_CLIENT_SECRET
+});
 
 app.use(cors());
 
@@ -24,7 +38,7 @@ app.listen(port, () => {
 
 app.post('/add-wage', (req, res) => {
   try {
-    const { user_id, wage_id, name, amount, created_at } = req.body;
+    const { user_id, wage_id, name, amount, created_at, authorization_id } = req.body;
     
     if (!user_id || !name || !amount) {
       return res.status(400).json({ 
@@ -32,7 +46,7 @@ app.post('/add-wage', (req, res) => {
       });
     }
 
-    const wage = new Wage(user_id, wage_id, name, amount, created_at);
+    const wage = new Wage(user_id, wage_id, name, amount, created_at, authorization_id);
     wages.push(wage);
     
     res.status(201).json({ 
@@ -90,4 +104,146 @@ app.post('/signup', (req, res) => {
 app.get('/users', (req, res) => {
   const result = auth.getUsers();
   res.json(result);
+});
+
+app.post('/create-paypal-order', async (req, res) => {
+  try {
+    const { amount } = req.body;
+    
+    // Validate amount
+    if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+      console.error('Invalid amount:', amount);
+      return res.status(400).json({ 
+        error: 'Invalid amount provided',
+        details: { receivedAmount: amount }
+      });
+    }
+
+    console.log('Creating PayPal order for amount:', amount);
+    
+    // Create a new client for each request to ensure fresh credentials
+    const client = new paypal.core.PayPalHttpClient(
+      new paypal.core.SandboxEnvironment(
+        process.env.PAYPAL_CLIENT_ID,
+        process.env.PAYPAL_CLIENT_SECRET
+      )
+    );
+    
+    const request = new paypal.orders.OrdersCreateRequest();
+    request.headers["prefer"] = "return=representation";
+    request.requestBody({
+      intent: 'AUTHORIZE',
+      purchase_units: [{
+        amount: {
+          currency_code: 'USD',
+          value: parseFloat(amount).toFixed(2)
+        }
+      }]
+    });
+
+    console.log('PayPal request body:', JSON.stringify(request.requestBody, null, 2));
+    const order = await client.execute(request);
+    console.log('PayPal response:', JSON.stringify(order.result, null, 2));
+
+    res.json({ 
+      orderId: order.result.id,
+      status: order.result.status 
+    });
+  } catch (error) {
+    console.error('PayPal order creation error:', {
+      name: error.name,
+      message: error.message,
+      details: error.details || error,
+      stack: error.stack
+    });
+    
+    res.status(500).json({ 
+      error: 'Failed to create PayPal order',
+      details: error.message,
+      name: error.name
+    });
+  }
+});
+
+app.post('/authorize-paypal-order', async (req, res) => {
+  try {
+    const { orderID } = req.body;
+    
+    const request = new paypal.orders.OrdersAuthorizeRequest(orderID);
+    request.prefer("return=representation");
+    
+    const authorization = await paypalClient.execute(request);
+    
+    const authorizationId = authorization.result.purchase_units[0].payments.authorizations[0].id;
+    
+    res.json({ 
+      authorizationId: authorizationId,
+      status: authorization.result.status
+    });
+  } catch (error) {
+    console.error('Failed to authorize PayPal order:', error);
+    res.status(500).json({ error: 'Failed to authorize PayPal order' });
+  }
+});
+
+app.post('/capture-authorized-payment', async (req, res) => {
+  try {
+    const { authorizationId } = req.body;
+    
+    const request = new paypal.payments.AuthorizationsCaptureRequest(authorizationId);
+    request.prefer("return=representation");
+    
+    const capture = await paypalClient.execute(request);
+    
+    res.json({ 
+      captureId: capture.result.id,
+      status: capture.result.status
+    });
+  } catch (error) {
+    console.error('Failed to capture authorized payment:', error);
+    res.status(500).json({ error: 'Failed to capture authorized payment' });
+  }
+});
+
+app.post('/void-authorization', async (req, res) => {
+  try {
+    const { authorizationId } = req.body;
+    
+    if (!authorizationId) {
+      return res.status(400).json({ 
+        error: 'Authorization ID is required' 
+      });
+    }
+
+    console.log('Voiding authorization:', authorizationId);
+    
+    const request = new paypal.payments.AuthorizationsVoidRequest(authorizationId);
+    const response = await paypalClient.execute(request);
+    
+    // Find and update the wage status
+    const wageIndex = wages.findIndex(w => w.authorization_id === authorizationId);
+    if (wageIndex !== -1) {
+      wages[wageIndex].status = 'cancelled';
+    }
+    
+    console.log('Authorization voided successfully');
+    
+    res.json({ 
+      success: true,
+      status: 'VOIDED',
+      message: 'Wager cancelled successfully'
+    });
+  } catch (error) {
+    console.error('Failed to void authorization:', {
+      name: error.name,
+      message: error.message,
+      details: error.details || error,
+      stack: error.stack
+    });
+    
+    res.status(500).json({ 
+      error: 'Failed to void authorization',
+      details: error.message 
+    });
+  }
 });
