@@ -10,10 +10,17 @@ class Wage {
         this.llm_checker = llm_checker;
         this.frequency = frequency;
         this.frequency_unit = frequency_unit;
+        this.completions = []; // Array of completed dates
     }
 
     cancel() {
         this.status = 'cancelled';
+    }
+
+    addCompletion(date) {
+        if (!this.completions.includes(date)) {
+            this.completions.push(date);
+        }
     }
 }
 

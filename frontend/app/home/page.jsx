@@ -37,42 +37,56 @@ export default function home() {
         fetchWages()
     }, [router])
 
+    useEffect(() => {
+        const handleWagerUpdate = async () => {
+            if (auth) {
+                const data = await getWages(auth.user_id);
+                setWages(data);
+            }
+        };
+
+        window.addEventListener('wager-updated', handleWagerUpdate);
+        return () => window.removeEventListener('wager-updated', handleWagerUpdate);
+    }, [auth]);
+
     return (
         <PayPalProvider>
             <div className="min-h-screen w-screen">
                 <header className="p-4 w-screen">
                     <span className="text-xl">BetOnGoals</span>
                 </header>
-                <div className="flex w-1/2 flex-col justify-center items-center mt-8">
+                <div className="flex w-full flex-col justify-center items-center mt-8">
                     <h1 className="text-3xl text-ring">New day new you, right Brandon?</h1>
                     
-                    <div className="mt-12 w-full max-w-md">
-                        <h2 className="text-center mb-2">Create New Wager</h2>
-                        <NewWager 
-                            auth={auth} 
-                            onWagerCreated={() => {
-                                // Refresh wages when a new wager is created
-                                if (auth) {
-                                    getWages(auth.user_id).then(setWages);
-                                }
-                            }}
-                        />
-                    </div>
-                    <div className="mt-4 w-full max-w-md">
-                        <h2 className="text-center mb-2">
-                            Current Wagers
-                        </h2>
-                        <div className="flex flex-col gap-4">
-                            {wages && wages.length > 0 ? (
-                                wages.map((wage, index) => (
-                                    <WagerCard 
-                                        key={index} 
-                                        wage={wage}
-                                    />
-                                ))
-                            ) : (
-                                <p className="text-center text-gray-500">No wagers yet</p>
-                            )}
+                    <div className="flex justify-around w-full">
+                        <div className="mt-12 w-full max-w-md">
+                            <h2 className="text-center mb-2">Create New Wager</h2>
+                            <NewWager
+                                auth={auth}
+                                onWagerCreated={() => {
+                                    // Refresh wages when a new wager is created
+                                    if (auth) {
+                                        getWages(auth.user_id).then(setWages);
+                                    }
+                                }}
+                            />
+                        </div>
+                        <div className="mt-4 w-full max-w-md">
+                            <h2 className="text-center mb-2">
+                                Current Wagers
+                            </h2>
+                            <div className="flex flex-col gap-4">
+                                {wages && wages.length > 0 ? (
+                                    wages.map((wage, index) => (
+                                        <WagerCard
+                                            key={index}
+                                            wage={wage}
+                                        />
+                                    ))
+                                ) : (
+                                    <p className="text-center text-gray-500">No wagers yet</p>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -261,3 +261,24 @@ app.post('/void-authorization', async (req, res) => {
     });
   }
 });
+
+app.post('/submit-proof', (req, res) => {
+    try {
+        const { wage_id } = req.body;
+        const wage = wages.find(w => w.wage_id === wage_id);
+        if (!wage) {
+            return res.status(404).json({ error: 'Wage not found' });
+        }
+        const today = new Date().toISOString().split('T')[0]; //day on server
+        wage.addCompletion(today);
+        
+        res.json({
+            success: true,
+            completions: wage.completions
+        });
+    } catch (error) {
+        console.error('Error marking completion:', error);
+        res.status(500).json({ error: 'Failed to mark completion' });
+    }
+});
+
