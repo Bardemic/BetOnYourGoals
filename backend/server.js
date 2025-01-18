@@ -38,7 +38,7 @@ app.listen(port, () => {
 
 app.post('/add-wage', (req, res) => {
   try {
-    const { user_id, name, amount, created_at, authorization_id, llm_checker, frequency, frequency_unit } = req.body;
+    const { user_id, name, amount, authorization_id, llm_checker, frequency, frequency_unit } = req.body;
     
     if (!user_id || !name || !amount) {
       return res.status(400).json({ 
@@ -48,13 +48,17 @@ app.post('/add-wage', (req, res) => {
 
     // Generate a unique wage_id
     const wage_id = Math.random().toString(36).substring(2, 15);
+    
+    // Set creation time on server side
+    const created_at = new Date().toISOString();
+    //const created_at = new Date('2025-01-15').toISOString(); //for testing
 
     const wage = new Wage(
       user_id, 
       wage_id, 
       name, 
       amount, 
-      created_at, 
+      created_at,  // Use server-side timestamp
       authorization_id, 
       llm_checker,
       frequency,

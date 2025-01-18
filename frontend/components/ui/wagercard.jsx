@@ -104,8 +104,11 @@ export default function WagerCard({ wage: initialWage = {} }) {
                             {(() => {
                                 const startDate = new Date(wage.created_at);
                                 const today = new Date();
-                                const daysDiff = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
-                                const daysToShow = Math.min(14, daysDiff + 1);
+                                
+                                // Calculate days between creation and today (inclusive)
+                                const daysDiff = Math.floor((today - startDate) / (1000 * 60 * 60 * 24)) + 1;
+                                // Show all days from creation to today
+                                const daysToShow = Math.max(1, daysDiff);
                                 
                                 return [...Array(daysToShow)].map((_, index) => {
                                     const date = new Date(startDate);

@@ -112,7 +112,6 @@ export default function NewWager({auth, onWagerCreated}) {
                     user_id: auth.user_id,
                     name: formData.name,
                     amount: parseFloat(formData.amount),
-                    created_at: new Date().toISOString(),
                     authorization_id: authorizationId,
                     llm_checker: llmChecker,
                     frequency: formData.frequency,
