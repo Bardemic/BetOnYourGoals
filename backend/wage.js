@@ -1,5 +1,5 @@
 class Wage {
-    constructor(user_id, wage_id, name, amount, created_at, authorization_id = null) {
+    constructor(user_id, wage_id, name, amount, created_at, authorization_id = null, llm_checker, frequency, frequency_unit) {
         this.user_id = user_id;
         this.wage_id = wage_id;
         this.name = name;
@@ -7,6 +7,9 @@ class Wage {
         this.created_at = created_at;
         this.authorization_id = authorization_id;
         this.status = 'authorized';
+        this.llm_checker = llm_checker;
+        this.frequency = frequency;
+        this.frequency_unit = frequency_unit;
     }
 
     cancel() {

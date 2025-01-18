@@ -38,7 +38,7 @@ app.listen(port, () => {
 
 app.post('/add-wage', (req, res) => {
   try {
-    const { user_id, wage_id, name, amount, created_at, authorization_id } = req.body;
+    const { user_id, name, amount, created_at, authorization_id, llm_checker, frequency, frequency_unit } = req.body;
     
     if (!user_id || !name || !amount) {
       return res.status(400).json({ 
@@ -46,7 +46,20 @@ app.post('/add-wage', (req, res) => {
       });
     }
 
-    const wage = new Wage(user_id, wage_id, name, amount, created_at, authorization_id);
+    // Generate a unique wage_id
+    const wage_id = Math.random().toString(36).substring(2, 15);
+
+    const wage = new Wage(
+      user_id, 
+      wage_id, 
+      name, 
+      amount, 
+      created_at, 
+      authorization_id, 
+      llm_checker,
+      frequency,
+      frequency_unit
+    );
     wages.push(wage);
     
     res.status(201).json({ 
@@ -54,6 +67,7 @@ app.post('/add-wage', (req, res) => {
       wage: wage 
     });
   } catch (error) {
+    console.error('Error adding wage:', error);
     res.status(500).json({ 
       error: 'Failed to add wage',
       details: error.message 
