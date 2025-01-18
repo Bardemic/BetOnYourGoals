@@ -5,15 +5,20 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { PayPalButtons, usePayPalScriptReducer } from "@paypal/react-paypal-js"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
 
 export default function NewWager({auth, onWagerCreated}) {
-    const [{ isResolved, isPending, isRejected }, dispatch] = usePayPalScriptReducer();
+    const [{ isResolved, isPending }] = usePayPalScriptReducer();
     const [formData, setFormData] = useState({
         name: '',
         amount: '',
+        llm_checker: '',
+        frequency: 'once',
+        frequency_unit: 'day'
     })
     const [showPayPal, setShowPayPal] = useState(false)
     const [error, setError] = useState(null)
+    const [llmChecker, setLlmChecker] = useState('')
 
     const createOrder = async (data, actions) => {
         try {
@@ -108,7 +113,10 @@ export default function NewWager({auth, onWagerCreated}) {
                     name: formData.name,
                     amount: parseFloat(formData.amount),
                     created_at: new Date().toISOString(),
-                    authorization_id: authorizationId
+                    authorization_id: authorizationId,
+                    llm_checker: llmChecker,
+                    frequency: formData.frequency,
+                    frequency_unit: formData.frequency_unit
                 }),
             });
 
@@ -116,7 +124,7 @@ export default function NewWager({auth, onWagerCreated}) {
                 throw new Error('Failed to create wage');
             }
 
-            setFormData({ name: '', amount: '' });
+            setFormData({ name: '', amount: '', llm_checker: '' });
             setShowPayPal(false);
             setError(null);
             
@@ -147,6 +155,8 @@ export default function NewWager({auth, onWagerCreated}) {
                     [name]: value
                 }));
             }
+        } else if (name === 'llm_checker') {
+            setLlmChecker(value);
         } else {
             setFormData(prev => ({
                 ...prev,
@@ -156,8 +166,8 @@ export default function NewWager({auth, onWagerCreated}) {
     };
 
     useEffect(() => {
-        console.log('PayPal Script Status:', { isResolved, isPending, isRejected });
-    }, [isResolved, isPending, isRejected]);
+        console.log('PayPal Script Status:', { isResolved, isPending });
+    }, [isResolved, isPending]);
 
     return (
         <Card>
@@ -171,6 +181,7 @@ export default function NewWager({auth, onWagerCreated}) {
                             <Label>Wager Name</Label>
                             <Input 
                                 type="text" 
+                                placeholder="Go to the gym 3 times a week"
                                 name="name" 
                                 value={formData.name} 
                                 onChange={handleChange} 
@@ -182,12 +193,56 @@ export default function NewWager({auth, onWagerCreated}) {
                             <Input 
                                 type="number" 
                                 name="amount" 
+                                placeholder="10"
                                 value={formData.amount} 
                                 onChange={handleChange}
                                 min="0.01"
                                 step="0.01"
                                 required
                             />
+                        </div>
+                        <div>
+                            <Label>Proof of Completion</Label>
+                            <Input 
+                                type="text" 
+                                name="llm_checker" 
+                                placeholder="a selfie of me at the gym"
+                                value={llmChecker} 
+                                onChange={handleChange}
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Frequency</Label>
+                            <div className="flex gap-2 items-center">
+                                Check
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" type="button">
+                                            {formData.frequency}
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DropdownMenuItem onClick={() => setFormData(prev => ({ ...prev, frequency: 'once' }))} >once</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setFormData(prev => ({ ...prev, frequency: 'twice' }))} >twice</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setFormData(prev => ({ ...prev, frequency: '3x' }))} >3x</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setFormData(prev => ({ ...prev, frequency: '4x' }))} >4x</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                a
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" type="button">
+                                            {formData.frequency_unit}
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DropdownMenuItem onClick={() => setFormData(prev => ({ ...prev, frequency_unit: 'day' }))} >day</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setFormData(prev => ({ ...prev, frequency_unit: 'week' }))} >week</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setFormData(prev => ({ ...prev, frequency_unit: 'month' }))} >month</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
                         </div>
                         {error && (
                             <div className="text-red-500 text-sm">
@@ -206,20 +261,6 @@ export default function NewWager({auth, onWagerCreated}) {
                                     <div className="text-center py-4">
                                         <p>Loading PayPal...</p>
                                     </div>
-                                ) : isRejected ? (
-                                    <div className="text-red-500 text-center py-4">
-                                        <p>Failed to load PayPal</p>
-                                        <Button 
-                                            onClick={() => dispatch({ type: "resetOptions", value: { 
-                                                "client-id": process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID,
-                                                currency: "USD",
-                                                intent: "authorize" 
-                                            }})}
-                                            className="mt-2"
-                                        >
-                                            Retry
-                                        </Button>
-                                    </div>
                                 ) : isResolved ? (
                                     <PayPalButtons
                                         createOrder={createOrder}
@@ -234,7 +275,11 @@ export default function NewWager({auth, onWagerCreated}) {
                                         }}
                                         forceReRender={[formData.amount]}
                                     />
-                                ) : null}
+                                ) : (
+                                    <div className="text-red-500 text-center py-4">
+                                        <p>Failed to load PayPal</p>
+                                    </div>
+                                )}
                             </div>
                             <Button 
                                 type="button" 

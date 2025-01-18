@@ -57,6 +57,7 @@ export default function WagerCard({ wage = {} }) {
                     <span>- since {new Date(wage.created_at).toLocaleDateString()}</span>
                     <span>- ${wage.amount} on the line</span>
                     <span>- Status: {wage.status || 'pending'}</span>
+                    <span>- Proof of Completion: {wage.llm_checker || ''}</span>
                 </div>
                 <div className="w-1/2 flex justify-end items-end">
                     <Button>edit</Button>
