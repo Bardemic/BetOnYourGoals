@@ -4,7 +4,14 @@ const Wage = require('./wage');
 const auth = require('./auth');
 const paypal = require('@paypal/checkout-server-sdk');
 require('dotenv').config();
-
+const verify_submission = require('./verify_submission');
+const multer = require('multer');
+const upload = multer({ 
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    }
+});
 const app = express();
 const port = process.env.PORT || 3001;
 
@@ -266,14 +273,35 @@ app.post('/void-authorization', async (req, res) => {
   }
 });
 
-app.post('/submit-proof', (req, res) => {
+app.post('/submit-proof', upload.single('photo'), async (req, res) => {
     try {
-        const { wage_id } = req.body;
+        const { wage_id, llm_checker } = req.body;
+        const photo = req.file;
+
+        if (!photo || !llm_checker) {
+            return res.status(400).json({ error: 'No photo or prompt provided' });
+        }
+
         const wage = wages.find(w => w.wage_id === wage_id);
         if (!wage) {
             return res.status(404).json({ error: 'Wage not found' });
         }
-        const today = new Date().toISOString().split('T')[0]; //day on server
+
+        const photoBase64 = photo.buffer.toString('base64');
+        
+        const isValid = await verify_submission.validSubmission({
+            photo: photoBase64,
+            prompt: llm_checker
+        });
+
+        if (!isValid) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Proof verification failed. Please try again.' 
+            });
+        }
+
+        const today = new Date().toISOString().split('T')[0];
         wage.addCompletion(today);
         
         res.json({
@@ -281,8 +309,12 @@ app.post('/submit-proof', (req, res) => {
             completions: wage.completions
         });
     } catch (error) {
-        console.error('Error marking completion:', error);
-        res.status(500).json({ error: 'Failed to mark completion' });
+        console.error('Error processing submission:', error);
+        res.status(500).json({ error: 'Failed to process submission' });
     }
 });
 
+app.get('/verify-submission', async (req, res) => {
+    const result = await verify_submission.validSubmission();
+    res.json(result);
+});
